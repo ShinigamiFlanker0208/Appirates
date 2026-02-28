@@ -67,7 +67,6 @@ export default function Home() {
                 <p className="text-sm text-white/40 font-mono">Shipping production-ready assets to the abyss.</p>
               </GlassCard>
             </div>
-
           </section>
         </div>
       </main>

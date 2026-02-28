@@ -4,11 +4,19 @@ import { useState } from 'react';
 import { motion, useMotionValueEvent, useScroll } from 'framer-motion';
 import { GlassCard } from './GlassCard';
 import { cn } from '@/lib/utils';
+import Link from "next/link"; //Added Link
 
 export const GlassNavbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const { scrollY } = useScroll();
-    const navItems = ['About', 'Projects', 'Events', 'Team'];
+    const navItems = [
+        { label: "About", href: "/about" },
+        { label: "Projects", href: "/projects" },
+        { label: "Events", href: "/events" },
+        { label: "Team", href: "/team" },
+]
+    
+    // const navItems = ['About', 'Projects', 'Events', 'Team'];
 
     useMotionValueEvent(scrollY, "change", (latest) => {
         const scrolled = latest > 50;
@@ -65,20 +73,20 @@ export const GlassNavbar = () => {
                     </div>
 
                     {/* Links */}
-                    <div className={cn(
-                        "hidden md:flex items-center transition-all duration-500",
-                        isScrolled ? "gap-6" : "gap-8"
+                    <div className={cn( 
+                        'hidden md:flex items-center transition-all duration-500',
+                        isScrolled ? 'gap-6' : 'gap-8'
                     )}>
-                        {navItems.map((item) => (
-                            <a
-                                key={item}
-                                href={`#${item.toLowerCase()}`}
-                                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 hover:text-crimson transition-all"
-                            >
-                                {item}
-                            </a>
-                        ))}
-                    </div>
+                    {navItems.map((item) => (
+                    <Link
+                    key={item.href}
+                    href={item.href as any}
+                    className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 hover:text-crimson transition-all"
+                    >
+                        {item.label}
+                    </Link>
+                ))}
+                </div>
 
                     {/* Button */}
                     <button className={cn(
