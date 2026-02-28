@@ -1,6 +1,7 @@
 import StormBackground from '@/components/StormBackground';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassNavbar } from '@/components/ui/GlassNavbar';
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -39,9 +40,11 @@ export default function Home() {
 
             {/* CTA Group */}
             <div className="flex flex-col sm:flex-row gap-6 justify-center mb-24">
-              <button className="px-10 py-4 rounded-xl bg-crimson text-white font-black uppercase tracking-widest hover:bg-red-500 hover:scale-105 transition-all shadow-[0_0_25px_rgba(220,38,38,0.4)]">
+              <Link
+                href="/join"
+                className="px-10 py-4 rounded-xl bg-crimson text-white font-black uppercase tracking-widest hover:bg-red-500 hover:scale-105 transition-all shadow-[0_0_25px_rgba(220,38,38,0.4)]">
                 Join The Crew
-              </button>
+              </Link>
               <button className="px-10 py-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md text-white font-bold hover:bg-white/10 transition-all">
                 The Arsenal
               </button>
