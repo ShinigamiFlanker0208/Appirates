@@ -1,12 +1,24 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 
 const StormBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // 1. Hook to listen for page changes
+  const pathname = usePathname();
+
+  // 2. Ref to hold the ship's current X position without triggering React re-renders
+  const shipXRef = useRef(-1000); // Start way off-screen to the left
+
+  // 3. Reset ship position when the route changes
   useEffect(() => {
-    // 1. Image Initialization
+    // Whenever the page changes, throw the ship back to the left side
+    shipXRef.current = -500;
+  }, [pathname]);
+
+  useEffect(() => {
     const logoImg = new Image();
     logoImg.src = '/logo.PNG';
 
@@ -67,11 +79,27 @@ const StormBackground = () => {
 
     // --- SHIP DRAWING LOGIC ---
     const drawShip = (time: number) => {
-      const shipX = width * 0.75;
+      // THE MOVEMENT PHYSICS
+      const targetShipX = width * 0.75; // The docking spot on the right
+
+      // Calculate distance to target
+      const distance = targetShipX - shipXRef.current;
+
+      if (distance > 1) {
+        // Sail towards target. Faster when far away, slows down smoothly as it parks.
+        shipXRef.current += (distance * 0.012) + 1.5;
+      } else {
+        // Snap to target exactly once it's close enough
+        shipXRef.current = targetShipX;
+      }
+
+      const shipX = shipXRef.current; // Grab the current animated value
+
       const waveFreq = 0.0025;
       const waveAmp = 35;
       const waveSpeed = time * 0.0005;
 
+      // Calculate Y based on the animated X position (makes it ride the waves!)
       const shipY = (height - seaHeight * 0.5 + 35) +
           Math.sin(shipX * waveFreq + waveSpeed) * waveAmp;
 
@@ -83,7 +111,6 @@ const StormBackground = () => {
       ctx.translate(shipX, shipY);
       ctx.rotate(angle * 1.5);
 
-      // Scale & Style
       const scale = 6.5;
       ctx.scale(scale, scale);
 
@@ -91,7 +118,7 @@ const StormBackground = () => {
       ctx.shadowColor = 'rgba(255,0,0,0.5)';
       ctx.fillStyle = '#050810';
       ctx.strokeStyle = '#df0e0e';
-      ctx.lineWidth = 0.8 / scale; // Thin borders
+      ctx.lineWidth = 0.8 / scale;
 
       // 1. Hull
       ctx.beginPath();
@@ -103,63 +130,50 @@ const StormBackground = () => {
       ctx.fill();
       ctx.stroke();
 
-      // 2. Masts (Three Masts)
+      // 2. Masts
       ctx.beginPath();
       ctx.moveTo(0, -10); ctx.lineTo(0, -70);      // Main
       ctx.moveTo(-30, -10); ctx.lineTo(-30, -55);  // Fore
       ctx.moveTo(25, -10); ctx.lineTo(25, -50);    // Mizzen
       ctx.stroke();
 
-      // --- 3. INVERTED SAILS (Point at Top) ---
+      // --- 3. INVERTED SAILS ---
       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
 
       const windPush = 4;
       const sailFlap = Math.sin(time * 0.004) * 2;
       const flow = windPush + sailFlap;
 
-      // Function to draw a Pointed-Top Sail
       const drawPointedSail = (mastX: number, mastTopY: number, width: number, height: number) => {
         const bottomY = mastTopY + height;
 
         ctx.beginPath();
-        // Start at Top Point (attached to mast)
         ctx.moveTo(mastX, mastTopY);
-
-        // Curve down to Bottom Right corner
-        // Control point pushed right by wind
         ctx.quadraticCurveTo(
             mastX + width/2 + flow,
             mastTopY + height/2,
             mastX + width/2,
             bottomY
         );
-
-        // Bottom Edge (Curved slightly up for volume)
         ctx.quadraticCurveTo(
             mastX,
             bottomY - 2,
             mastX - width/2,
             bottomY
         );
-
-        // Curve back up to Top Point
-        // Left edge follows the wind flow slightly
         ctx.quadraticCurveTo(
             mastX - width/2 + flow,
             mastTopY + height/2,
             mastX,
             mastTopY
         );
-
         ctx.fill();
         ctx.stroke();
       };
 
-      // Draw 3 Pointed Sails
-      // (mastX, topY, width, height)
-      drawPointedSail(0, -68, 40, 50);    // Main Sail (Big center)
-      drawPointedSail(-30, -53, 25, 35);  // Fore Sail (Front)
-      drawPointedSail(25, -48, 25, 30);   // Mizzen Sail (Back)
+      drawPointedSail(0, -68, 40, 50);
+      drawPointedSail(-30, -53, 25, 35);
+      drawPointedSail(25, -48, 25, 30);
 
       ctx.restore();
     };
@@ -195,7 +209,6 @@ const StormBackground = () => {
     const render = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Background (No Lightning)
       const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
       bgGradient.addColorStop(0, '#1a0b0b');
       bgGradient.addColorStop(1, '#050505');
@@ -220,7 +233,7 @@ const StormBackground = () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, []); // Note: We do NOT put pathname in this dependency array so the canvas doesn't hard-reset.
 
   return (
       <canvas ref={canvasRef} className="fixed inset-0 z-0 pointer-events-none" />
