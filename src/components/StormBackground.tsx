@@ -9,8 +9,9 @@ const StormBackground = () => {
   // 1. Hook to listen for page changes
   const pathname = usePathname();
 
-  // 2. Ref to hold the ship's current X position without triggering React re-renders
-  const shipXRef = useRef(-1000); // Start way off-screen to the left
+  // 2. Ref to hold the ship's current X position
+  // We start it at -1000 so it's fully off-screen to the left on first load
+  const shipXRef = useRef(-1000);
 
   // 3. Reset ship position when the route changes
   useEffect(() => {
@@ -79,15 +80,15 @@ const StormBackground = () => {
 
     // --- SHIP DRAWING LOGIC ---
     const drawShip = (time: number) => {
-      // THE MOVEMENT PHYSICS
+      // --- THE MOVEMENT PHYSICS (SLOW & DRAMATIC) ---
       const targetShipX = width * 0.75; // The docking spot on the right
 
       // Calculate distance to target
       const distance = targetShipX - shipXRef.current;
 
       if (distance > 1) {
-        // Sail towards target. Faster when far away, slows down smoothly as it parks.
-        shipXRef.current += (distance * 0.012) + 1.5;
+        // Sail towards target. Slow easing (0.008) and slow base speed (0.8)
+        shipXRef.current += (distance * 0.004) + 0.05;
       } else {
         // Snap to target exactly once it's close enough
         shipXRef.current = targetShipX;
@@ -99,7 +100,7 @@ const StormBackground = () => {
       const waveAmp = 35;
       const waveSpeed = time * 0.0005;
 
-      // Calculate Y based on the animated X position (makes it ride the waves!)
+      // Calculate Y based on the animated X position (makes it ride the waves)
       const shipY = (height - seaHeight * 0.5 + 35) +
           Math.sin(shipX * waveFreq + waveSpeed) * waveAmp;
 
@@ -233,7 +234,7 @@ const StormBackground = () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []); // Note: We do NOT put pathname in this dependency array so the canvas doesn't hard-reset.
+  }, []);
 
   return (
       <canvas ref={canvasRef} className="fixed inset-0 z-0 pointer-events-none" />
