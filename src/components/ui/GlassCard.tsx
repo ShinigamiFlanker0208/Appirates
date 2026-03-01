@@ -51,7 +51,7 @@ export const GlassCard = ({
             <div className="absolute inset-0 bg-gradient-to-br from-crimson/5 to-transparent pointer-events-none" />
 
             {/* 3. Content */}
-            <div className="relative z-10">
+            <div className="relative z-10 flex-1 flex flex-col w-full h-full">
                 {children}
             </div>
         </motion.div>

@@ -35,3 +35,6 @@
   background: #dc2626;
   border-radius: 10px;
 }
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}

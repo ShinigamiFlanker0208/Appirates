@@ -1,178 +1,246 @@
 "use client";
 
-import { GlassCard } from "@/components/ui/GlassCard";
-import { motion } from "framer-motion";
+import React, { useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { GlassCard } from '@/components/ui/GlassCard';
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 40 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.8, ease: "easeOut" },
-  },
-};
+if (typeof window !== 'undefined') {
+    gsap.registerPlugin(useGSAP, ScrollTrigger);
+}
 
 export default function AboutPage() {
-  return (
-    <div className="flex flex-col min-h-screen">
-        {/* WHO WE ARE */}
-        <section className="pt-32 pb-24 px-6 text-center relative">
-          <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            className="max-w-4xl mx-auto space-y-6"
-          >
-            <h1 className="text-5xl md:text-7xl font-display font-black text-metallic">
-              Who We Are?
-            </h1>
+    const containerRef = useRef<HTMLDivElement>(null);
 
-            <p className="text-lg text-white/70">
-              We are <span className="text-crimson font-bold">Appirates</span> —  not just developers, but digital navigators sailing the vast seas of technology.
-            </p>
+    useGSAP(() => {
+        // 1. Initial Hero Animation
+        gsap.fromTo('.hero-text', 
+            { y: 30, opacity: 0 },
+            { y: 0, opacity: 1, duration: 1, ease: "power3.out", delay: 0.2 }
+        );
+        
+        gsap.fromTo('.hero-sub', 
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, duration: 1, ease: "power3.out", delay: 0.4 }
+        );
 
-            <p className="text-white/60 leading-relaxed">
-              Crew of builders, explorers, and relentless innovators who dare to chart unknown territories in the world of software.
-              From Android systems to desktop engines and scalable web platforms, our fleet sails across domains — disciplined in structure, bold in execution.
-            </p>
+        // 2. Wavy Water Text Reveal (Top to Bottom Line by Line)
+        // Animate the wave horizontally infinitely
+        gsap.to('.water-text', {
+            backgroundPositionX: '1000px',
+            ease: 'none',
+            duration: 4,
+            repeat: -1
+        });
 
-            <p className="text-white/60 leading-relaxed">
-              
-    Where others see complexity, we see adventure.  
-    Where others see bugs, we see challenges waiting to be conquered.  
-    Every application we craft is a ship — engineered for strength, speed, and purpose.
-            </p>
+        // Animate the water filling top-to-bottom on scroll
+        gsap.fromTo('.water-text', 
+            { backgroundPositionY: '100%' }, // Transparent (bottom half of SVG)
+            {
+                backgroundPositionY: '0%', // White (top half of SVG)
+                ease: 'none',
+                scrollTrigger: {
+                    trigger: '.mission-section',
+                    start: 'top 80%',
+                    end: 'bottom 70%',
+                    scrub: 1,
+                }
+            }
+        );
 
-            <div className="pt-6 text-xl text-white">
-              Our <span className="text-crimson font-bold"> Crew Members </span>  are not just passengers — they are captains of innovation.
-            </div>
-          </motion.div>
+        // 3. Domains Cards Stagger
+        gsap.fromTo('.domain-card', 
+            { y: 40, opacity: 0 },
+            {
+                scrollTrigger: {
+                    trigger: '.domains-section',
+                    start: 'top 80%',
+                },
+                y: 0,
+                opacity: 1,
+                duration: 0.7,
+                stagger: 0.15,
+                ease: "power3.out",
+            }
+        );
 
-          {/* <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-crimson to-transparent opacity-40 animate-pulse" />
-        */} </section>
+        // 4. Motive Section Fade
+        gsap.fromTo('.motive-box',
+            { scale: 0.95, opacity: 0 },
+            {
+                scrollTrigger: {
+                    trigger: '.motive-section',
+                    start: 'top 80%',
+                },
+                scale: 1,
+                opacity: 1,
+                duration: 0.8,
+                stagger: 0.2,
+                ease: "power3.out",
+            }
+        );
 
-        {/* OUR DOMAINS */}
-        <section className="py-24 px-6 text-center relative bg-black/60">
-          <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            className="max-w-5xl mx-auto space-y-14"
-          >
-            <h2 className="text-5xl font-display font-black text-metallic">
-              Our Fleet
-            </h2>
+        // 5. SHIP MOVEMENT DRIVER
+        const st = ScrollTrigger.create({
+            trigger: containerRef.current,
+            start: "top top",
+            end: "bottom bottom",
+            onUpdate: (self) => {
+                // self.progress goes from 0 to 1 as we scroll down the entire page.
+                // We map it so the ship sails progressively from left (15%) to right (85%)
+                const percent = 0.15 + (self.progress * 0.70);
+                
+                // 3D Focus effect: scale up and move down as we scroll
+                const scale = 2.0 + (self.progress * 8.0); // Grows from 2x to 10x
+                const yOffset = self.progress * 80; // Pushes down as it gets closer
 
-            <DomainBlock
-              title="Android Development"
-              date="23 Sept 2008: The Release of Android"
-              text="Our flagship vessel. Forged with Kotlin, powered by Jetpack Compose — built to conquer mobile seas."
-            />
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('setShipProgress', { 
+                        detail: { percent, scale, yOffset } 
+                    }));
+                }
+            }
+        });
 
-            <AnimatedDivider />
+        return () => {
+            st.kill();
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('resetShipProgress'));
+            }
+        };
 
-            <DomainBlock
-              title="Desktop App Development"
-              date="24 Aug 1981: The Birth of IBM PC"
-              text="The ironclad battleships of productivity. Stable, Structured, Unstoppable."
-            />
+    }, { scope: containerRef });
 
-            <AnimatedDivider />
+    return (
+        <main ref={containerRef} className="flex-1 flex flex-col relative min-h-screen overflow-hidden">
+            
+            {/* HERO SECTION */}
+            <section className="min-h-screen flex flex-col justify-center items-center px-6 pt-20 text-center relative">
+                <div className="max-w-4xl mx-auto flex flex-col items-center">
+                    <h1 className="hero-text text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tighter leading-[1.1] mb-6">
+                        We Are <br className="hidden md:block" />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-crimson to-red-500 pr-2">
+                            Appirates
+                        </span>
+                    </h1>
+                    
+                    <p className="hero-sub text-gray-400 text-sm md:text-base font-light max-w-xl leading-relaxed">
+                        A tech community focused on learning, building, and shipping cool things. No fluff, just code.
+                    </p>
+                </div>
 
-            <DomainBlock
-              title="Web App Development"
-              date="6 Aug 1991: The First Website went Live"
-              text="The fastest ships in our armada — scalable, adaptive, and ready for global tides. "
-            />
-          </motion.div>
+                {/* Scroll Indicator - Moved back to the absolute bottom of the screen */}
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 hero-sub opacity-0">
+                    <span className="text-[9px] uppercase tracking-[0.3em] text-gray-500 font-bold">Scroll</span>
+                    <div className="w-px h-12 bg-gradient-to-b from-crimson to-transparent animate-pulse" />
+                </div>
+            </section>
 
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-crimson to-transparent opacity-40 animate-pulse" />
-        </section>
+            {/* THE MISSION (Wavy Water Reveal) */}
+            <section className="mission-section min-h-[50vh] flex items-center justify-center px-6 py-16 bg-black/40 border-y border-white/5 relative z-10">
+                <div className="max-w-4xl mx-auto w-full text-center">
+                    {/* The Water Fill Text */}
+                    <h2 
+                        className="water-text text-2xl md:text-4xl lg:text-5xl font-bold leading-tight md:leading-tight mx-auto pb-4"
+                        style={{
+                            backgroundImage: `url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"%3E%3Cpath d="M0,0 L1000,0 L1000,500 C875,540 625,460 500,500 C375,540 125,460 0,500 Z" fill="%23ffffff"/%3E%3C/svg%3E')`,
+                            backgroundSize: "1000px 200%",
+                            backgroundRepeat: "repeat",
+                            WebkitBackgroundClip: "text",
+                            backgroundClip: "text",
+                            color: "rgba(255, 255, 255, 0.15)",
+                            backgroundPositionY: "100%" // Start transparent
+                        }}
+                    >
+                        We believe knowledge isn't useful until you build something with it. We turn ideas into real, working products.
+                    </h2>
+                </div>
+            </section>
 
-        {/* OUR MOTIVE */}
-        <section className="py-24 px-6 text-center relative">
-          <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            className="max-w-6xl mx-auto"
-          >
-            <h2 className="text-5xl font-display font-black text-metallic mb-14">
-              Our Compass
-            </h2>
+            {/* DOMAINS */}
+            <section className="domains-section py-20 px-6 relative z-10">
+                <div className="max-w-5xl mx-auto w-full">
+                    <div className="mb-10 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-4">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-black uppercase text-white tracking-tight mb-2">What We Build</h2>
+                            <div className="w-12 h-1 bg-crimson mx-auto md:mx-0" />
+                        </div>
+                    </div>
 
-            <div className="grid md:grid-cols-2 gap-10">
-              <GlassCard className="border-white/10" padding="lg">
-                <h3 className="text-2xl font-bold text-white mb-3">
-                  Workshops
-                </h3>
-                <p className="text-crimson mb-4">
-                  Hosting / Mentoring Workshops
-                </p>
-                <p className="text-white/60 leading-relaxed">
-                  We love hosting workshops and mentoring students. Covering Mobile App Development, Desktop App Development and Web App Development, our aim is not solely delivering knowledge, but also to ensure some significant output product by each attendee.
-                </p>
-              </GlassCard>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="domain-card opacity-0">
+                            <GlassCard hover={false} padding="lg" className="h-full !bg-black/30 hover:border-white/20 transition-colors duration-500">
+                                <h3 className="text-lg md:text-xl font-bold text-white mb-2">Mobile Apps</h3>
+                                <p className="text-gray-400 font-light text-xs md:text-sm leading-relaxed mb-6">
+                                    Native and cross-platform mobile experiences that feel smooth and look amazing.
+                                </p>
+                                <span className="text-[10px] font-bold text-crimson uppercase tracking-widest">Android & iOS</span>
+                            </GlassCard>
+                        </div>
+                        <div className="domain-card opacity-0">
+                            <GlassCard hover={false} padding="lg" className="h-full !bg-black/30 hover:border-white/20 transition-colors duration-500">
+                                <h3 className="text-lg md:text-xl font-bold text-white mb-2">Web Platforms</h3>
+                                <p className="text-gray-400 font-light text-xs md:text-sm leading-relaxed mb-6">
+                                    Fast, scalable, and modern websites using the latest web frameworks.
+                                </p>
+                                <span className="text-[10px] font-bold text-crimson uppercase tracking-widest">Frontend & Backend</span>
+                            </GlassCard>
+                        </div>
+                        <div className="domain-card opacity-0">
+                            <GlassCard hover={false} padding="lg" className="h-full !bg-black/30 hover:border-white/20 transition-colors duration-500">
+                                <h3 className="text-lg md:text-xl font-bold text-white mb-2">Desktop Tools</h3>
+                                <p className="text-gray-400 font-light text-xs md:text-sm leading-relaxed mb-6">
+                                    Heavy-duty native applications and software for serious productivity.
+                                </p>
+                                <span className="text-[10px] font-bold text-crimson uppercase tracking-widest">System Architecture</span>
+                            </GlassCard>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-              <GlassCard className="border-white/10" padding="lg">
-                <h3 className="text-2xl font-bold text-white mb-3">
-                  Projects
-                </h3>
-                <p className="text-crimson mb-4">
-                  Crafting Community and Projects
-                </p>
-                <p className="text-white/60 leading-relaxed">
-                  We believe knowledge must evolve into execution — transforming
-                  ideas into powerful, feature-rich, real-world solutions.
-                  No matter how much knowledge you gain, until you apply it is just a string
-                  in your head that is filling your memory.
-                </p>
-              </GlassCard>
-            </div>
-          </motion.div>
-        </section>
+            {/* MOTIVE */}
+            <section className="motive-section py-16 px-6 relative z-10 mb-12">
+                <div className="max-w-5xl mx-auto w-full">
+                    <div className="mb-10 text-center md:text-right flex flex-col md:items-end justify-between gap-4 md:flex-row-reverse">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-black uppercase text-white tracking-tight mb-2">How We Work</h2>
+                            <div className="w-12 h-1 bg-crimson mx-auto md:mx-0 md:ml-auto" />
+                        </div>
+                    </div>
 
-    </div>
-  );
-}
-/* ---------------- DOMAIN BLOCK ---------------- */
-function DomainBlock({
-  title,
-  date,
-  text,
-}: {
-  title: string;
-  date: string;
-  text: string;
-}) {
-  return (
-    <motion.div
-      variants={fadeUp}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true }}
-      className="space-y-4"
-    >
-      <h3 className="text-3xl font-bold text-white">{title}</h3>
-      <p className="text-crimson">{date}</p>
-      <p className="text-white/60 max-w-3xl mx-auto">{text}</p>
-    </motion.div>
-  );
-}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <div className="motive-box opacity-0">
+                            <GlassCard padding="lg" className="h-full !bg-black/40 border-white/5">
+                                <div className="text-crimson mb-4">
+                                    <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight mb-2">1. Learn</h3>
+                                <p className="text-gray-400 font-light text-xs md:text-sm leading-relaxed">
+                                    We host workshops, bootcamps, and masterclasses. We don't just talk about theory; we write code together, make mistakes, and fix them in real-time.
+                                </p>
+                            </GlassCard>
+                        </div>
+                        <div className="motive-box opacity-0">
+                            <GlassCard padding="lg" className="h-full !bg-black/40 border-white/5">
+                                <div className="text-white mb-4">
+                                    <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight mb-2">2. Build</h3>
+                                <p className="text-gray-400 font-light text-xs md:text-sm leading-relaxed">
+                                    Learning is half the journey. We team up to build open-source tools, community platforms, and paid projects to get real-world engineering experience.
+                                </p>
+                            </GlassCard>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-/* ---------------- ANIMATED DIVIDER ---------------- */
-
-function AnimatedDivider() {
-  return (
-    <motion.div
-      initial={{ scaleX: 0 }}
-      whileInView={{ scaleX: 1 }}
-      transition={{ duration: 0.8 }}
-      viewport={{ once: true }}
-      className="h-px bg-gradient-to-r from-transparent via-crimson to-transparent origin-center"
-    />
-  );
+        </main>
+    );
 }

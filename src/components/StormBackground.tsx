@@ -1,23 +1,15 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
 
 const StormBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // 1. Hook to listen for page changes
-  const pathname = usePathname();
-
-  // 2. Ref to hold the ship's current X position
+  // 1. Ref to hold the ship's current X position
   // We start it at -1000 so it's fully off-screen to the left on first load
   const shipXRef = useRef(-1000);
-
-  // 3. Reset ship position when the route changes
-  useEffect(() => {
-    // Whenever the page changes, throw the ship back to the left side
-    shipXRef.current = -500;
-  }, [pathname]);
+  const shipScaleRef = useRef(6.5);
+  const shipYOffsetRef = useRef(0);
 
   useEffect(() => {
     const logoImg = new Image();
@@ -79,40 +71,86 @@ const StormBackground = () => {
     };
 
     // --- SHIP DRAWING LOGIC ---
+    let currentTargetPercent = 0.75;
+    let currentTargetScale = 6.5;
+    let currentTargetYOffset = 0;
+    let isScrollDriven = false;
+
+    const handleSetShipProgress = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail) {
+            isScrollDriven = true;
+            if (typeof customEvent.detail.percent === 'number') {
+                currentTargetPercent = customEvent.detail.percent;
+            }
+            if (typeof customEvent.detail.scale === 'number') {
+                currentTargetScale = customEvent.detail.scale;
+            }
+            if (typeof customEvent.detail.yOffset === 'number') {
+                currentTargetYOffset = customEvent.detail.yOffset;
+            }
+        }
+    };
+    
+    const handleResetShipProgress = () => {
+        isScrollDriven = false;
+        currentTargetPercent = 0.75;
+        currentTargetScale = 6.5;
+        currentTargetYOffset = 0;
+    };
+
+    window.addEventListener('setShipProgress', handleSetShipProgress);
+    window.addEventListener('resetShipProgress', handleResetShipProgress);
+
     const drawShip = (time: number) => {
-      // --- THE MOVEMENT PHYSICS (SLOW & DRAMATIC) ---
-      const targetShipX = width * 0.75; // The docking spot on the right
+      // --- THE MOVEMENT PHYSICS (SLOW & DRAMATIC OR SCROLL-DRIVEN) ---
+      const targetShipX = width * currentTargetPercent;
 
       // Calculate distance to target
       const distance = targetShipX - shipXRef.current;
 
-      if (distance > 1) {
-        // Sail towards target. Slow easing (0.008) and slow base speed (0.8)
-        shipXRef.current += (distance * 0.004) + 0.05;
+      if (isScrollDriven) {
+        // Smoothly and quickly track the scroll position
+        shipXRef.current += distance * 0.08;
       } else {
-        // Snap to target exactly once it's close enough
-        shipXRef.current = targetShipX;
+        // Normal slow atmospheric sailing
+        if (Math.abs(distance) > 1) {
+          const dir = distance > 0 ? 1 : -1;
+          shipXRef.current += (distance * 0.004) + (0.05 * dir);
+        } else {
+          shipXRef.current = targetShipX;
+        }
       }
 
-      const shipX = shipXRef.current; // Grab the current animated value
+      // Smoothly interpolate scale and Y offset for 3D focus effect
+      if (isScrollDriven) {
+          shipScaleRef.current += (currentTargetScale - shipScaleRef.current) * 0.08;
+          shipYOffsetRef.current += (currentTargetYOffset - shipYOffsetRef.current) * 0.08;
+      } else {
+          // Slowly return to default if not scroll driven
+          shipScaleRef.current += (6.5 - shipScaleRef.current) * 0.02;
+          shipYOffsetRef.current += (0 - shipYOffsetRef.current) * 0.02;
+      }
+
+      const shipX = shipXRef.current; 
+      const scale = shipScaleRef.current;
 
       const waveFreq = 0.0025;
       const waveAmp = 35;
       const waveSpeed = time * 0.0005;
 
-      // Calculate Y based on the animated X position (makes it ride the waves)
-      const shipY = (height - seaHeight * 0.5 + 35) +
-          Math.sin(shipX * waveFreq + waveSpeed) * waveAmp;
+      const baseY = (height - seaHeight * 0.5 + 35) + shipYOffsetRef.current;
 
-      const nextY = (height - seaHeight * 0.5 + 35) +
-          Math.sin((shipX + 1) * waveFreq + waveSpeed) * waveAmp;
+      // Calculate Y based on the animated X position (makes it ride the waves)
+      const shipY = baseY + Math.sin(shipX * waveFreq + waveSpeed) * waveAmp;
+
+      const nextY = baseY + Math.sin((shipX + 1) * waveFreq + waveSpeed) * waveAmp;
       const angle = Math.atan2(nextY - shipY, 1);
 
       ctx.save();
       ctx.translate(shipX, shipY);
       ctx.rotate(angle * 1.5);
 
-      const scale = 6.5;
       ctx.scale(scale, scale);
 
       ctx.shadowBlur = 15;
@@ -232,6 +270,8 @@ const StormBackground = () => {
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('setShipProgress', handleSetShipProgress);
+      window.removeEventListener('resetShipProgress', handleResetShipProgress);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
