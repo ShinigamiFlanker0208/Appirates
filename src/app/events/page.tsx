@@ -1,15 +1,77 @@
 "use client";
+
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+import StormBackground from "@/components/StormBackground";
+import { GlassNavbar } from "@/components/ui/GlassNavbar";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { motion } from "framer-motion";
-import NextImage from "next/image";
+import Image from "next/image";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
   show: { opacity: 1, y: 0, transition: { duration: 0.7 } },
 };
 
+type EventType = {
+  id: string;
+  title: string;
+  description: string;
+  mentor: string;
+  startDate: string;
+  endDate: string;
+  imageUrls?: string[];
+};
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+};
+
 export default function EventsPage() {
+  const [events, setEvents] = useState<EventType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const q = query(
+          collection(db, "events"),
+          orderBy("createdAt", "desc")
+        );
+
+        const snapshot = await getDocs(q);
+
+        const data: EventType[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<EventType, "id">),
+        }));
+
+        setEvents(data);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
   return (
+    <main className="relative min-h-screen overflow-hidden bg-black">
+      <div className="fixed inset-0 z-0">
+        <StormBackground />
+      </div>
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <GlassNavbar />
+
         <section className="pt-32 pb-24 px-6 text-center">
           <motion.div
             variants={fadeUp}
@@ -22,90 +84,27 @@ export default function EventsPage() {
               Appirates Workshops & Events
             </h1>
 
-            {/* FULLSTACK 2.0 */}
-            <EventBlock
-              imageSrc="/FullStack 2.0.jpeg"
-              date="2–6 February 2026"
-              subtitle="Fullstack Development Workshop 2.0 (Appirates × CodeHub Nexus)"
-              content={[
-                "Covered HTML, CSS, JavaScript, React fundamentals, and modern frontend structuring.",
-                "Built backend APIs using Express.js with CRUD operations and MongoDB integration.",
-                "Integrated frontend with backend and deployed projects using Vercel & Render.",
-              ]}
-              footer="Mentor: Siddharth Sharma (Co-Founder, TechVanch Innovations & CodeHub Nexus)"
-            />
+            {loading && (
+              <p className="text-white/50">Loading events...</p>
+            )}
 
-            {/* AI + IOT WORKSHOP */}
-            <EventBlock
-              imageSrc = "/IOT.jpeg"
-              date="3–4 & 10–11 November 2025"
-              subtitle="AI + IoT Smart Robot Workshop"
-              content={[
-                "Built a Line Follower Robot using Arduino ESP32 and IR sensors.",
-                "Implemented proportional control logic and real-time motor adjustments.",
-                "Learned sensor calibration, embedded systems architecture, and hardware-software integration.",
-              ]}
-              footer="Mentors: Mr. Dheeraj Chauhan (IoT Systems Architect, Senior R&D Engineer – 17+ years experience) | Mr. Parth Gaba (Software Architect, Senior AI & Systems Engineer – 9+ years experience | Founder & Director – NDM Infocom Pvt. Ltd., EkWorth Tech Pvt. Ltd.)"
-            />
+            {!loading && events.length === 0 && (
+              <p className="text-white/50">No events available yet.</p>
+            )}
 
-            {/* FULLSTACK 1.0 */}
-            <EventBlock
-              // imageSrc = "/"
-              date="30 October 2025"
-              subtitle="Fullstack Development Workshop 1.0 (Appirates × CodeHub Nexus)"
-              content={[
-                "Built and deployed complete fullstack applications with frontend-backend integration.",
-                "Practiced Git & GitHub collaboration and implemented scalable coding standards.",
-                "Explored Gen AI tool integration within web development workflows.",
-              ]}
-              footer="Mentor: Siddharth Sharma (Co-Founder, TechVanch Innovations & CodeHub Nexus)"
-            />
-
-            {/* ANDROID DEVELOPMENT WORKSHOP */}
-            <EventBlock
-              // imageSrc = "/"
-              date="16–17 & 24–25 September 2025"
-              subtitle="Android Development Workshop"
-              content={[
-                "Covered Kotlin fundamentals, OOPS, Jetpack Compose, layouts, navigation, and dynamic theming.",
-                "Integrated Supabase and Firebase into Android applications for real-world backend handling.",
-                "Guided participants through professional app deployment to Play Store & Indus App Store.",
-              ]}
-              footer="Mentors: Ashwin, Ishita, Samarpreet, Shri, Rashi, Rakshita, Anand"
-            />
-
-            {/* WORKSHOP 1.0 */}
-            <EventBlock
-              imageSrc = "/Workshop-1.png"
-              date="11 March 2025"
-              subtitle="Workshop 1.0"
-              content={[
-                "Introduced modern Android UI development using Jetpack Compose and reactive UI structuring.",
-                "Built a structured 3-Layer ToDo application separating FileSystem, AppState, and UI logic.",
-                "Implemented a Vertex Bot project to understand backend APIs and intelligent app integrations.",
-              ]}
-            />
-
+            {events.map((event) => (
+              <EventBlock key={event.id} event={event} />
+            ))}
           </motion.div>
         </section>
+      </div>
+    </main>
   );
 }
 
-/* ---------------- REUSABLE EVENT BLOCK ---------------- */
+/* EVENT BLOCK  */
 
-function EventBlock({
-  date,
-  subtitle,
-  content,
-  footer,
-  imageSrc,
-}: {
-  date: string;
-  subtitle: string;
-  content: string[];
-  footer?: string;
-  imageSrc?: string;
-}) {
+function EventBlock({ event }: { event: EventType }) {
   return (
     <motion.div
       variants={fadeUp}
@@ -118,33 +117,43 @@ function EventBlock({
         className="border-white/10 text-center max-w-3xl w-full"
         padding="lg"
       >
-        {imageSrc && (
-  <div className="mb-6 flex justify-center">
-    <NextImage
-      src={imageSrc}
-      alt={subtitle}
-      width={500}
-      height={300}
-      className="rounded-2xl object-cover"
-    />
-  </div>
-)}
+        {/* IMAGE SECTION */}
+        {event.imageUrls && event.imageUrls.length > 0 && (
+        <div className={`mb-6 ${
+        event.imageUrls.length === 1
+        ? "flex justify-center"
+        : "grid grid-cols-1 md:grid-cols-2 gap-4" }`}>
+        {event.imageUrls.map((img, index) => (
+        <Image
+        key={index}
+        src={img}
+        alt={event.title}
+        width={500}
+        height={300}
+        className="rounded-2xl object-cover"
+      />
+      ))}
+     </div>
+    )}
 
-        <p className="text-crimson font-bold mb-2">{date}</p>
+        {/* DATE SECTION */}
+        <p className="text-crimson font-bold mb-4">
+          {event.endDate && event.startDate !== event.endDate
+          ? `${formatDate(event.startDate)} – ${formatDate(event.endDate)}`
+          : formatDate(event.startDate)}
+          </p>
 
         <h2 className="text-2xl font-bold text-white mb-6">
-          {subtitle}
+          {event.title}
         </h2>
 
-        <ul className="space-y-3 text-white/60 leading-relaxed">
-          {content.map((item, index) => (
-            <li key={index}>{item}</li>
-          ))}
-        </ul>
+        <p className="text-white/60 leading-relaxed">
+          {event.description}
+        </p>
 
-        {footer && (
+        {event.mentor && (
           <p className="mt-6 text-white/40 text-sm">
-            {footer}
+            Mentor(s): {event.mentor}
           </p>
         )}
       </GlassCard>

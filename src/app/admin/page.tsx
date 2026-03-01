@@ -41,6 +41,18 @@ export default function AdminPage() {
     order: 1,
   });
 
+  // Event State
+  const [activeTab, setActiveTab] = useState<"crew" | "events">("crew");
+  const [events, setEvents] = useState<any[]>([]);
+  const [eventForm, setEventForm] = useState({
+    title: "",
+    description: "",
+    mentor: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [eventImages, setEventImages] = useState<File[]>([]);
+
   const fetchMembers = async () => {
     const q = query(collection(db, "team"), orderBy("order"));
     const snapshot = await getDocs(q);
@@ -51,10 +63,48 @@ export default function AdminPage() {
     setMembers(data);
   };
 
-  useEffect(() => {
-    if (loggedIn) fetchMembers();
-  }, [loggedIn]);
+  const fetchEvents = async () => {
+  const q = query(collection(db, "events"), orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+  setEvents(data);
+  };
 
+  //Cloudinary- Events
+  const uploadImageToCloudinary = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "Appirates_Events");
+
+  const response = await fetch(
+    "https://api.cloudinary.com/v1_1/djrclqunq/image/upload",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("Cloudinary Error:", data);
+    throw new Error("Image upload failed");
+  }
+
+  return data.secure_url;
+};
+
+  useEffect(() => {
+  if (loggedIn) {
+    fetchMembers();
+    fetchEvents();
+  }
+}, [loggedIn]);
+  
+  // Crew Handlers
   const handleLogin = async () => {
     await signInWithEmailAndPassword(auth, email, password);
     setLoggedIn(true);
@@ -91,6 +141,39 @@ export default function AdminPage() {
     await deleteDoc(doc(db, "team", id));
     fetchMembers();
   };
+
+  // Event Handlers
+  const handleEventSubmit = async () => {
+  try {
+    let imageUrls: string[] = [];
+
+    if (eventImages.length > 0) {
+      for (const image of eventImages) {
+        const url = await uploadImageToCloudinary(image);
+        imageUrls.push(url);
+      }
+    }
+
+    await addDoc(collection(db, "events"), {
+      ...eventForm,
+      imageUrls,
+      createdAt: new Date(),
+    });
+
+    setEventForm({
+      title: "",
+      description: "",
+      mentor: "",
+      startDate: "",
+      endDate: "",
+    });
+
+    setEventImages([]); 
+    fetchEvents();
+  } catch (error) {
+    console.error("Event Upload Error:", error);
+  }
+};
 
   if (!loggedIn) {
     return (
@@ -141,9 +224,28 @@ export default function AdminPage() {
             Logout
           </button>
         </div>
+        <div className="flex gap-6 mt-6">
+          <button
+          onClick={() => setActiveTab("crew")}
+          className={`px-6 py-2 rounded-full border ${
+          activeTab === "crew"
+          ? "bg-crimson text-white border-crimson"
+          : "border-white/20 text-white/60"
+        }`} >
+          Crew
+          </button>
+          <button
+          onClick={() => setActiveTab("events")}
+          className={`px-6 py-2 rounded-full border ${
+          activeTab === "events"
+          ? "bg-crimson text-white border-crimson"
+          : "border-white/20 text-white/60"
+        }`} >
+          Events
+          </button>
+          </div>
 
-        <div className="grid md:grid-cols-2 gap-12">
-
+        {activeTab === "crew" && ( <div className="grid md:grid-cols-2 gap-12">
           {/* FORM */}
           <GlassCard className="p-8">
             <h2 className="text-2xl font-bold mb-6 text-white">
@@ -243,6 +345,116 @@ export default function AdminPage() {
             </div>
           </GlassCard>
         </div>
+        )}
+        {activeTab === "events" && (
+  <div className="grid md:grid-cols-2 gap-12">
+
+    {/* EVENT FORM */}
+    <GlassCard className="p-8">
+      <h2 className="text-2xl font-bold mb-6 text-white">
+        Add Event
+      </h2>
+
+      <div className="space-y-4">
+
+        <input
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Title"
+          value={eventForm.title}
+          onChange={(e) =>
+            setEventForm({ ...eventForm, title: e.target.value })
+          }
+        />
+
+        <input
+          type="date"
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white 
+             [&::-webkit-calendar-picker-indicator]:invert"
+          value={eventForm.startDate}
+          onChange={(e) =>
+          setEventForm({ ...eventForm, startDate: e.target.value })} />
+
+        <input
+          type="date"
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white 
+             [&::-webkit-calendar-picker-indicator]:invert"
+          value={eventForm.endDate}
+          onChange={(e) =>
+          setEventForm({ ...eventForm, endDate: e.target.value })}
+          />
+
+
+        <textarea
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Description"
+          value={eventForm.description}
+          onChange={(e) =>
+            setEventForm({ ...eventForm, description: e.target.value })
+          }
+        />
+
+        <input
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Mentor"
+          value={eventForm.mentor}
+          onChange={(e) =>
+            setEventForm({ ...eventForm, mentor: e.target.value })
+          }
+        />
+
+        <input
+        type="file"
+        multiple
+        onChange={(e) =>
+          setEventImages(
+            e.target.files ? Array.from(e.target.files) : [])}
+            />
+
+        <button
+          onClick={handleEventSubmit}
+          className="w-full bg-crimson py-3 rounded-lg font-bold hover:opacity-90 transition"
+        >
+          Add Event
+        </button>
+      </div>
+    </GlassCard>
+
+    {/* EVENT LIST */}
+    <GlassCard className="p-8 max-h-[600px] overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-6 text-white">
+        Events Database
+      </h2>
+
+      <div className="space-y-4">
+        {events.map((event) => (
+          <div
+            key={event.id}
+            className="flex justify-between items-center border border-white/10 p-4 rounded-lg"
+          >
+            <div>
+              <p className="font-bold text-white">
+                {event.title}
+              </p>
+              <p className="text-sm text-white/50">
+                {event.mentor}
+              </p>
+            </div>
+
+            <button
+              onClick={() =>
+                deleteDoc(doc(db, "events", event.id)).then(fetchEvents)
+              }
+              className="px-4 py-1 border border-crimson text-crimson rounded-full hover:bg-crimson hover:text-white transition"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+    </GlassCard>
+
+  </div>
+)}
       </div>
   );
 }
