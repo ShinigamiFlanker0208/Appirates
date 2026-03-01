@@ -1,10 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-
-import StormBackground from "@/components/StormBackground";
-import { GlassNavbar } from "@/components/ui/GlassNavbar";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { motion } from "framer-motion";
 import NextImage from "next/image";
@@ -16,14 +10,6 @@ const fadeUp = {
 
 export default function EventsPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black">
-      <div className="fixed inset-0 z-0">
-        <StormBackground />
-      </div>
-
-      <div className="relative z-10 flex flex-col min-h-screen">
-        <GlassNavbar />
-
         <section className="pt-32 pb-24 px-6 text-center">
           <motion.div
             variants={fadeUp}
@@ -102,8 +88,6 @@ export default function EventsPage() {
 
           </motion.div>
         </section>
-      </div>
-    </main>
   );
 }
 

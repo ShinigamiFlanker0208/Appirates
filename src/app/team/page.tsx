@@ -3,10 +3,7 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import StormBackground from "@/components/StormBackground";
-import { GlassNavbar } from "@/components/ui/GlassNavbar";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { motion } from "framer-motion";
 
 type Member = {
   id: string;
@@ -40,21 +37,13 @@ export default function TeamPage() {
   const general = members.filter((m) => m.category === "member");
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black">
-      <div className="fixed inset-0 z-0">
-        <StormBackground />
-      </div>
-
-      <div className="relative z-10 flex flex-col min-h-screen">
-        <GlassNavbar />
-
+    <div className="flex flex-col min-h-screen">
         <HeroSection />
 
         <Section title="Faculty Coordinators" members={faculty} />
         <Section title="Core Leadership" members={core} />
         <Section title="Members" members={general} />
-      </div>
-    </main>
+    </div>
   );
 }
 

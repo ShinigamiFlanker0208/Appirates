@@ -16,7 +16,6 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import StormBackground from "@/components/StormBackground";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 type Member = {
@@ -95,9 +94,8 @@ export default function AdminPage() {
 
   if (!loggedIn) {
     return (
-      <main className="relative min-h-screen bg-black overflow-hidden flex items-center justify-center">
-        <StormBackground />
-        <GlassCard className="relative z-10 w-96 p-8">
+      <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+        <GlassCard className="w-96 p-8">
           <h2 className="text-3xl font-display font-bold text-metallic mb-6 text-center">
             Admin Access
           </h2>
@@ -124,15 +122,12 @@ export default function AdminPage() {
             </button>
           </div>
         </GlassCard>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="relative min-h-screen bg-black overflow-hidden">
-      <StormBackground />
-
-      <div className="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-20">
+      <div className="max-w-7xl mx-auto px-6 pt-32 pb-20">
 
         <div className="flex justify-between items-center mb-16">
           <h1 className="text-5xl font-display font-black text-metallic">
@@ -249,6 +244,5 @@ export default function AdminPage() {
           </GlassCard>
         </div>
       </div>
-    </main>
   );
 }

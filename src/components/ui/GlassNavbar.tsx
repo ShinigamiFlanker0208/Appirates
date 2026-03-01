@@ -68,7 +68,7 @@ export const GlassNavbar = () => {
                             "font-bold tracking-widest text-white uppercase text-xs transition-all duration-500",
                             isScrolled ? "opacity-0 w-0 overflow-hidden" : "opacity-100 w-auto"
                         )}>
-                            Appirates
+                            <Link href="/">Appirates</Link>
                         </span>
                     </div>
 
@@ -89,12 +89,12 @@ export const GlassNavbar = () => {
                 </div>
 
                     {/* Button */}
-                    <button className={cn(
+                    <Link className={cn(
                         "text-[10px] font-black uppercase tracking-widest text-white border border-crimson/50 rounded-full hover:bg-crimson transition-all duration-500",
                         isScrolled ? "px-4 py-1.5 bg-crimson/10" : "px-6 py-2"
-                    )}>
+                    )} href="/join">
                         Join Crew
-                    </button>
+                    </Link>
 
                 </div>
             </GlassCard>

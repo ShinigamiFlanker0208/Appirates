@@ -1,22 +1,9 @@
-import StormBackground from '@/components/StormBackground';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { GlassNavbar } from '@/components/ui/GlassNavbar';
 import Link from "next/link";
 
 export default function Home() {
   return (
-      <main className="relative min-h-screen overflow-hidden">
-
-        {/* Background Storm Layer */}
-        <div className="fixed inset-0 z-0">
-          <StormBackground />
-        </div>
-
-        {/* Content Layer */}
-        <div className="relative z-10 flex flex-col min-h-screen">
-          <GlassNavbar />
-
-          <section className="flex-grow flex flex-col items-center justify-center px-4 pt-32 pb-20 text-center">
+      <main className="flex-grow flex flex-col items-center justify-center px-4 pt-32 pb-20 text-center">
 
             {/* Status Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-8 rounded-full bg-crimson/10 border border-crimson/30 backdrop-blur-md">
@@ -70,8 +57,6 @@ export default function Home() {
                 <p className="text-sm text-white/40 font-mono">Shipping production-ready assets to the abyss.</p>
               </GlassCard>
             </div>
-          </section>
-        </div>
       </main>
   );
 }

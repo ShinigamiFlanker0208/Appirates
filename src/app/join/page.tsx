@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import StormBackground from "@/components/StormBackground";
-import { GlassNavbar } from "@/components/ui/GlassNavbar";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 export default function JoinPage() {
@@ -47,10 +45,6 @@ export default function JoinPage() {
   };
 
   return (
-    <main className="relative min-h-screen bg-black overflow-hidden">
-      <StormBackground />
-      <GlassNavbar />
-
       <div className="relative z-10 max-w-4xl mx-auto pt-32 pb-20 px-6">
         <h1 className="text-5xl font-display font-black text-metallic text-center mb-16">
           Join The Crew
@@ -130,6 +124,5 @@ export default function JoinPage() {
           </div>
         </GlassCard>
       </div>
-    </main>
   );
 }
