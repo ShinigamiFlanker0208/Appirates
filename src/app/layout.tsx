@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import StormBackground from "@/components/StormBackground";
 import { GlassNavbar } from "@/components/ui/GlassNavbar";
+import LenisProvider from "@/components/LenisProvider";
 
 export const metadata: Metadata = {
     title: "Appirates | Navigate the Digital Seas",
@@ -23,13 +24,15 @@ export default function RootLayout({
     return (
         <html lang="en">
         <body className="antialiased bg-black min-h-screen text-white">
-            <div className="fixed inset-0 z-0">
-                <StormBackground />
-            </div>
-            <div className="relative z-10 flex flex-col min-h-screen">
-                <GlassNavbar />
-                {children}
-            </div>
+            <LenisProvider>
+                <div className="fixed inset-0 z-0">
+                    <StormBackground />
+                </div>
+                <div className="relative z-10 flex flex-col min-h-screen">
+                    <GlassNavbar />
+                    {children}
+                </div>
+            </LenisProvider>
         </body>
         </html>
     );

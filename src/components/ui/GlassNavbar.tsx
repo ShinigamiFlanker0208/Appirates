@@ -46,8 +46,8 @@ export const GlassNavbar = () => {
                         "transition-all duration-500 ease-out relative z-50",
                         "bg-black/60 backdrop-blur-xl border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]",
                         isScrolled
-                            ? "px-5 py-2 md:px-6 md:py-2.5 rounded-full"
-                            : "px-6 py-3 md:px-8 md:py-4 rounded-full"
+                            ? "px-4 py-1.5 md:px-5 md:py-1.5 rounded-full"
+                            : "px-5 py-2 md:px-7 md:py-2.5 rounded-full"
                     )}
                     hover={false}
                     padding="none"
@@ -58,10 +58,10 @@ export const GlassNavbar = () => {
                     )}>
 
                         {/* Branding / Logo */}
-                        <Link href="/" className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-crimson rounded-md" aria-label="Home" onClick={() => setIsMobileMenuOpen(false)}>
+                        <Link href="/" className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-2 focus-visible:ring-crimson rounded-md" aria-label="Home" onClick={() => setIsMobileMenuOpen(false)}>
                             <div className={cn(
-                                "flex items-center justify-center transition-all duration-500 group-hover:scale-110 shrink-0 bg-black rounded-lg p-1.5 shadow-[0_0_10px_rgba(0,0,0,0.5)]",
-                                isScrolled ? "w-10 h-10" : "w-12 h-12"
+                                "flex items-center justify-center transition-all duration-500 group-hover:scale-110 shrink-0 bg-black rounded-lg p-1 shadow-[0_0_10px_rgba(0,0,0,0.5)]",
+                                isScrolled ? "w-7 h-7" : "w-8 h-8"
                             )}>
                                 <img 
                                     src="/logo.PNG" 
@@ -70,13 +70,25 @@ export const GlassNavbar = () => {
                                 />
                             </div>
 
-                            {/* Removed the 'hidden sm:block' and collapse logic to prevent overlap/layout jumps */}
+                            <AnimatePresence>
+                                {!isScrolled && (
+                                    <motion.span
+                                        initial={{ opacity: 0, width: 0, x: -8 }}
+                                        animate={{ opacity: 1, width: "auto", x: 0 }}
+                                        exit={{ opacity: 0, width: 0, x: -8 }}
+                                        transition={{ duration: 0.35, ease: "easeOut" }}
+                                        className="text-white font-bold tracking-[0.25em] text-[11px] hidden sm:block overflow-hidden whitespace-nowrap"
+                                    >
+                                        APPIRATES
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
                         </Link>
 
                         {/* Desktop Navigation Links */}
                         <div className={cn( 
                             'hidden md:flex items-center transition-all duration-500',
-                            isScrolled ? 'gap-4 lg:gap-6' : 'gap-6 lg:gap-8'
+                            isScrolled ? 'gap-5 lg:gap-6' : 'gap-5 lg:gap-7'
                         )}>
                             {navItems.map((item) => {
                                 const isActive = pathname === item.href;
@@ -84,79 +96,51 @@ export const GlassNavbar = () => {
                                     <Link
                                         key={item.href}
                                         href={item.href as any}
-                                        className="relative group py-2 px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-crimson rounded"
+                                        className="relative group flex items-center py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-crimson rounded"
                                         aria-current={isActive ? "page" : undefined}
                                     >
-                                        {/* Original Text (Hides on hover) */}
-                                        <span className="relative flex overflow-hidden">
-                                            {item.label.split('').map((char, index) => (
-                                                <span 
-                                                    key={index} 
-                                                    className={cn(
-                                                        "inline-block text-[10px] font-bold uppercase tracking-[0.2em] transition-transform duration-300 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:-translate-y-[150%] group-hover:rotate-12",
-                                                        isActive ? "text-white" : "text-white/60"
-                                                    )}
-                                                    style={{ transitionDelay: `${index * 0.01}s` }}
-                                                >
-                                                    {char === " " ? "\u00A0" : char}
-                                                </span>
-                                            ))}
+                                        <span className={cn(
+                                            "text-[10.5px] font-semibold uppercase tracking-widest leading-none transition-colors duration-200",
+                                            isActive ? "text-white" : "text-white/50 group-hover:text-white/90"
+                                        )}>
+                                            {item.label}
                                         </span>
 
-                                        {/* Hover Text (Reveals on hover) */}
-                                        <span className="absolute left-0 top-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none" aria-hidden="true">
-                                            {item.label.split('').map((char, index) => (
-                                                <span 
-                                                    key={index} 
-                                                    className="inline-block text-[10px] font-bold uppercase tracking-[0.2em] text-crimson transition-transform duration-300 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] -rotate-12 group-hover:translate-y-0 group-hover:rotate-0"
-                                                    style={{ transitionDelay: `${index * 0.01}s` }}
-                                                >
-                                                    {char === " " ? "\u00A0" : char}
-                                                </span>
-                                            ))}
-                                        </span>
-                                        
-                                        {/* Active Indicator Dot */}
-                                        {isActive && (
-                                            <motion.div 
-                                                layoutId="activeNavIndicator"
-                                                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-crimson rounded-full shadow-[0_0_8px_rgba(220,38,38,0.8)]" 
+                                        {/* Underline indicator */}
+                                        <span className="absolute bottom-0 left-0 h-px w-full overflow-hidden">
+                                            <motion.span
+                                                layoutId={isActive ? "activeUnderline" : undefined}
+                                                className={cn(
+                                                    "absolute inset-0 bg-crimson origin-left transition-transform duration-300",
+                                                    isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                                                )}
                                             />
-                                        )}
+                                        </span>
                                     </Link>
                                 );
                             })}
                         </div>
 
-                        {/* Advanced CTA Button & Mobile Toggle Wrapper */}
-                        <div className="flex items-center gap-3 md:gap-4">
-                            {/* Premium Compact CTA Button */}
+                        {/* CTA + Mobile Toggle */}
+                        <div className="flex items-center gap-3">
+                            {/* CTA Button */}
                             <Link 
                                 href="/join"
                                 onClick={() => setIsMobileMenuOpen(false)}
                                 className={cn(
-                                    "group relative flex items-center justify-center overflow-hidden rounded-full font-bold uppercase tracking-widest text-white transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white shrink-0 shadow-[0_0_15px_rgba(220,38,38,0.2)] hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]",
+                                    "group relative inline-flex items-center justify-center overflow-hidden rounded-md bg-crimson text-white font-semibold uppercase tracking-widest leading-none transition-all duration-200 hover:brightness-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-crimson focus-visible:ring-offset-1 focus-visible:ring-offset-black shrink-0",
                                     isScrolled 
-                                        ? "h-8 px-4 text-[9px] bg-black/60 border border-crimson/50" 
-                                        : "h-10 px-5 md:px-6 text-[10px] bg-black/40 border border-crimson/40"
+                                        ? "h-6 px-3 text-[8.5px] gap-1" 
+                                        : "h-7 px-3.5 text-[9px] gap-1.5"
                                 )}
                             >
-                                {/* Glowing ambient background that shifts on hover */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-crimson/10 to-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                
-                                {/* Shimmering sweep effect */}
-                                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
-
-                                {/* Text & Expanding Icon */}
-                                <span className="relative z-10 flex items-center">
-                                    <span className="mr-0 transition-all duration-300 group-hover:mr-2">Join</span>
-                                    <svg 
-                                        className="w-0 h-3 opacity-0 -translate-x-2 transition-all duration-300 ease-out group-hover:w-3 group-hover:opacity-100 group-hover:translate-x-0" 
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                    </svg>
-                                </span>
+                                <span className="relative z-10">Join Us</span>
+                                <svg 
+                                    className="relative z-10 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" 
+                                    width="8" height="8" viewBox="0 0 10 10" fill="none"
+                                >
+                                    <path d="M1 5h8M5.5 1.5L9 5l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
                             </Link>
 
                             {/* Mobile Hamburger Toggle */}
@@ -191,25 +175,26 @@ export const GlassNavbar = () => {
                     transition={{ duration: 0.3, ease: "easeOut" }}
                     className="fixed inset-0 z-40 bg-black/95 backdrop-blur-2xl md:hidden pt-28 px-6 pb-6 flex flex-col"
                 >
-                    <nav className="flex flex-col gap-6 mt-10">
+                    <nav className="flex flex-col mt-8">
                         {navItems.map((item, i) => {
                             const isActive = pathname === item.href;
                             return (
                                 <motion.div
                                     key={item.href}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.1, duration: 0.4 }}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.07, duration: 0.3 }}
                                 >
                                     <Link
                                         href={item.href as any}
                                         onClick={() => setIsMobileMenuOpen(false)}
                                         className={cn(
-                                            "text-2xl font-black uppercase tracking-widest block w-full py-4 border-b border-white/5",
-                                            isActive ? "text-crimson" : "text-white/70 hover:text-white"
+                                            "flex items-center justify-between text-lg font-semibold uppercase tracking-widest w-full py-4 border-b border-white/10 transition-colors duration-150",
+                                            isActive ? "text-white" : "text-white/40 hover:text-white/80"
                                         )}
                                     >
                                         {item.label}
+                                        {isActive && <span className="w-1.5 h-1.5 rounded-full bg-crimson" />}
                                     </Link>
                                 </motion.div>
                             );

@@ -7,8 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 import NextImage from 'next/image';
-import StormBackground from "@/components/StormBackground";
-import { GlassNavbar } from "@/components/ui/GlassNavbar";
 
 type EventType = {
   id: string;
@@ -149,14 +147,9 @@ export default function EventsPage() {
     }, [events, searchQuery, selectedCategory]);
 
     return (
-        <main className="relative min-h-screen overflow-hidden bg-black flex flex-col">
-            <div className="fixed inset-0 z-0">
-                <StormBackground />
-            </div>
+        <main className="relative min-h-screen overflow-hidden flex flex-col">
 
             <div className="relative z-10 flex flex-col min-h-screen flex-1">
-                <GlassNavbar />
-
                 <div className="flex-1 flex flex-col pt-32 pb-12 px-4 md:px-6">
                     {/* High-Impact Editorial Header Section */}
                     <div className="max-w-6xl mx-auto w-full mb-10 md:mb-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 md:gap-8">
