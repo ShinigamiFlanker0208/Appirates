@@ -17,6 +17,19 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GlassCard } from "@/components/ui/GlassCard";
+import {
+  createProject,
+  deleteProjectById,
+  getAllProjectsForAdmin,
+  updateProject,
+} from "@/lib/projects/service";
+import {
+  sanitizeSlug,
+  type Project,
+  type ProjectInput,
+  type ProjectSize,
+  type ProjectStatus,
+} from "@/lib/projects/schema";
 
 type Member = {
   id: string;
@@ -42,7 +55,7 @@ export default function AdminPage() {
   });
 
   // Event State
-  const [activeTab, setActiveTab] = useState<"crew" | "events">("crew");
+  const [activeTab, setActiveTab] = useState<"crew" | "events" | "projects">("crew");
   const [events, setEvents] = useState<any[]>([]);
   const [eventForm, setEventForm] = useState({
     title: "",
@@ -52,25 +65,79 @@ export default function AdminPage() {
     endDate: "",
   });
   const [eventImages, setEventImages] = useState<File[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectEditingId, setProjectEditingId] = useState<string | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [adminDataError, setAdminDataError] = useState<string | null>(null);
+  const [projectForm, setProjectForm] = useState<ProjectInput>({
+    title: "",
+    slug: "",
+    description: "",
+    content: "",
+    tags: [],
+    size: "small",
+    image: {
+      url: "",
+      alt: "",
+    },
+    featured: false,
+    order: 0,
+    status: "draft",
+    seo: {
+      title: "",
+      description: "",
+      ogImage: "",
+    },
+    liveUrl: "",
+    repoUrl: "",
+  });
+  const [projectImageFile, setProjectImageFile] = useState<File | null>(null);
+
+  const toReadableError = (error: unknown, fallback: string) => {
+    const message = (error as { message?: string })?.message || "";
+    if (message.toLowerCase().includes("missing or insufficient permissions")) {
+      return "Missing or insufficient permissions. Verify your Firestore rules and signed-in account access.";
+    }
+    return message || fallback;
+  };
 
   const fetchMembers = async () => {
-    const q = query(collection(db, "team"), orderBy("order"));
-    const snapshot = await getDocs(q);
-    const data: Member[] = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<Member, "id">),
-    }));
-    setMembers(data);
+    try {
+      const q = query(collection(db, "team"), orderBy("order"));
+      const snapshot = await getDocs(q);
+      const data: Member[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Member, "id">),
+      }));
+      setMembers(data);
+    } catch (error) {
+      setAdminDataError(toReadableError(error, "Unable to load crew data."));
+    }
   };
 
   const fetchEvents = async () => {
-  const q = query(collection(db, "events"), orderBy("createdAt", "desc"));
-  const snapshot = await getDocs(q);
-  const data = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-  setEvents(data);
+  try {
+    const q = query(collection(db, "events"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setEvents(data);
+  } catch (error) {
+    setAdminDataError(toReadableError(error, "Unable to load events data."));
+  }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const data = await getAllProjectsForAdmin();
+      setProjects(data);
+    } catch (error) {
+      const message = toReadableError(error, "Unable to load projects data.");
+      setAdminDataError(message);
+      setProjectError(message);
+    }
   };
 
   //Cloudinary- Events
@@ -99,8 +166,10 @@ export default function AdminPage() {
 
   useEffect(() => {
   if (loggedIn) {
+    setAdminDataError(null);
     fetchMembers();
     fetchEvents();
+    fetchProjects();
   }
 }, [loggedIn]);
   
@@ -138,8 +207,12 @@ export default function AdminPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteDoc(doc(db, "team", id));
-    fetchMembers();
+    try {
+      await deleteDoc(doc(db, "team", id));
+      fetchMembers();
+    } catch (error) {
+      setAdminDataError(toReadableError(error, "Unable to delete crew member."));
+    }
   };
 
   // Event Handlers
@@ -171,9 +244,116 @@ export default function AdminPage() {
     setEventImages([]); 
     fetchEvents();
   } catch (error) {
+    setAdminDataError(toReadableError(error, "Unable to save event."));
     console.error("Event Upload Error:", error);
   }
 };
+
+  const resetProjectForm = () => {
+    setProjectEditingId(null);
+    setProjectError(null);
+    setProjectImageFile(null);
+    setProjectForm({
+      title: "",
+      slug: "",
+      description: "",
+      content: "",
+      tags: [],
+      size: "small",
+      image: {
+        url: "",
+        alt: "",
+      },
+      featured: false,
+      order: 0,
+      status: "draft",
+      seo: {
+        title: "",
+        description: "",
+        ogImage: "",
+      },
+      liveUrl: "",
+      repoUrl: "",
+    });
+  };
+
+  const handleProjectSubmit = async () => {
+    setProjectError(null);
+    try {
+      let imageUrl = projectForm.image.url;
+
+      if (projectImageFile) {
+        imageUrl = await uploadImageToCloudinary(projectImageFile);
+      }
+
+      const payload: ProjectInput = {
+        ...projectForm,
+        slug: sanitizeSlug(projectForm.slug || projectForm.title),
+        tags: projectForm.tags,
+        image: {
+          ...projectForm.image,
+          url: imageUrl,
+          alt: projectForm.image.alt || projectForm.title,
+        },
+      };
+
+      if (projectEditingId) {
+        await updateProject(projectEditingId, payload);
+      } else {
+        await createProject(payload, auth.currentUser?.uid);
+      }
+
+      resetProjectForm();
+      fetchProjects();
+    } catch (error: any) {
+      setProjectError(toReadableError(error, "Unable to save project."));
+    }
+  };
+
+  const handleProjectEdit = (project: Project) => {
+    setProjectEditingId(project.id);
+    setProjectError(null);
+    setProjectImageFile(null);
+    setProjectForm({
+      title: project.title,
+      slug: project.slug,
+      description: project.description,
+      content: project.content || "",
+      tags: project.tags,
+      size: project.size,
+      image: {
+        url: project.image.url,
+        alt: project.image.alt,
+        cloudinaryId: project.image.cloudinaryId,
+        width: project.image.width,
+        height: project.image.height,
+      },
+      featured: project.featured,
+      order: project.order,
+      status: project.status,
+      seo: {
+        title: project.seo?.title || "",
+        description: project.seo?.description || "",
+        ogImage: project.seo?.ogImage || "",
+      },
+      liveUrl: project.liveUrl || "",
+      repoUrl: project.repoUrl || "",
+    });
+  };
+
+  const handleProjectDelete = async (id: string) => {
+    try {
+      await deleteProjectById(id);
+      fetchProjects();
+      if (projectEditingId === id) {
+        resetProjectForm();
+      }
+    } catch (error) {
+      const message = toReadableError(error, "Unable to delete project.");
+      setAdminDataError(message);
+      setProjectError(message);
+    }
+  };
 
   if (!loggedIn) {
     return (
@@ -243,7 +423,22 @@ export default function AdminPage() {
         }`} >
           Events
           </button>
+          <button
+          onClick={() => setActiveTab("projects")}
+          className={`px-6 py-2 rounded-full border ${
+          activeTab === "projects"
+          ? "bg-crimson text-white border-crimson"
+          : "border-white/20 text-white/60"
+        }`} >
+          Projects
+          </button>
           </div>
+
+        {adminDataError && (
+          <div className="mt-6 rounded-lg border border-crimson/50 bg-crimson/10 px-4 py-3 text-sm text-red-200">
+            {adminDataError}
+          </div>
+        )}
 
         {activeTab === "crew" && ( <div className="grid md:grid-cols-2 gap-12">
           {/* FORM */}
@@ -453,6 +648,279 @@ export default function AdminPage() {
       </div>
     </GlassCard>
 
+  </div>
+)}
+
+{activeTab === "projects" && (
+  <div className="grid md:grid-cols-2 gap-12">
+    <GlassCard className="p-8">
+      <h2 className="text-2xl font-bold mb-6 text-white">
+        {projectEditingId ? "Edit Project" : "Add Project"}
+      </h2>
+
+      <div className="space-y-4">
+        <input
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Title"
+          value={projectForm.title}
+          onChange={(e) =>
+            setProjectForm({
+              ...projectForm,
+              title: e.target.value,
+              slug: projectForm.slug || sanitizeSlug(e.target.value),
+            })
+          }
+        />
+
+        <input
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Slug"
+          value={projectForm.slug}
+          onChange={(e) =>
+            setProjectForm({ ...projectForm, slug: sanitizeSlug(e.target.value) })
+          }
+        />
+
+        <textarea
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Short description"
+          value={projectForm.description}
+          onChange={(e) =>
+            setProjectForm({ ...projectForm, description: e.target.value })
+          }
+        />
+
+        <textarea
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white min-h-[120px]"
+          placeholder="Detailed content (optional)"
+          value={projectForm.content}
+          onChange={(e) =>
+            setProjectForm({ ...projectForm, content: e.target.value })
+          }
+        />
+
+        <input
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Tags (comma separated)"
+          value={projectForm.tags.join(", ")}
+          onChange={(e) =>
+            setProjectForm({
+              ...projectForm,
+              tags: e.target.value
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <select
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            value={projectForm.size}
+            onChange={(e) =>
+              setProjectForm({ ...projectForm, size: e.target.value as ProjectSize })
+            }
+          >
+            <option value="small">small</option>
+            <option value="medium">medium</option>
+            <option value="large">large</option>
+            <option value="wide">wide</option>
+            <option value="tall">tall</option>
+          </select>
+
+          <select
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            value={projectForm.status}
+            onChange={(e) =>
+              setProjectForm({ ...projectForm, status: e.target.value as ProjectStatus })
+            }
+          >
+            <option value="draft">draft</option>
+            <option value="published">published</option>
+            <option value="archived">archived</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            type="number"
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            placeholder="Display order"
+            value={projectForm.order}
+            onChange={(e) =>
+              setProjectForm({ ...projectForm, order: Number(e.target.value) })
+            }
+          />
+
+          <input
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            placeholder="Image alt text"
+            value={projectForm.image.alt}
+            onChange={(e) =>
+              setProjectForm({
+                ...projectForm,
+                image: { ...projectForm.image, alt: e.target.value },
+              })
+            }
+          />
+        </div>
+
+        <input
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="Image URL (optional if uploading)"
+          value={projectForm.image.url}
+          onChange={(e) =>
+            setProjectForm({
+              ...projectForm,
+              image: { ...projectForm.image, url: e.target.value },
+            })
+          }
+        />
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) =>
+            setProjectImageFile(e.target.files?.[0] ?? null)
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            placeholder="Live URL"
+            value={projectForm.liveUrl || ""}
+            onChange={(e) =>
+              setProjectForm({ ...projectForm, liveUrl: e.target.value })
+            }
+          />
+          <input
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            placeholder="Repo URL"
+            value={projectForm.repoUrl || ""}
+            onChange={(e) =>
+              setProjectForm({ ...projectForm, repoUrl: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            placeholder="SEO title"
+            value={projectForm.seo?.title || ""}
+            onChange={(e) =>
+              setProjectForm({
+                ...projectForm,
+                seo: { ...projectForm.seo, title: e.target.value },
+              })
+            }
+          />
+          <input
+            className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+            placeholder="SEO OG image"
+            value={projectForm.seo?.ogImage || ""}
+            onChange={(e) =>
+              setProjectForm({
+                ...projectForm,
+                seo: { ...projectForm.seo, ogImage: e.target.value },
+              })
+            }
+          />
+        </div>
+
+        <textarea
+          className="w-full p-3 bg-black/40 rounded-lg border border-white/10 text-white"
+          placeholder="SEO description"
+          value={projectForm.seo?.description || ""}
+          onChange={(e) =>
+            setProjectForm({
+              ...projectForm,
+              seo: { ...projectForm.seo, description: e.target.value },
+            })
+          }
+        />
+
+        <label className="flex items-center gap-2 text-sm text-white/80">
+          <input
+            type="checkbox"
+            checked={projectForm.featured}
+            onChange={(e) =>
+              setProjectForm({ ...projectForm, featured: e.target.checked })
+            }
+          />
+          Featured project
+        </label>
+
+        {projectError && (
+          <p className="text-sm text-crimson">{projectError}</p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleProjectSubmit}
+            className="w-full bg-crimson py-3 rounded-lg font-bold hover:opacity-90 transition"
+          >
+            {projectEditingId ? "Update Project" : "Add Project"}
+          </button>
+
+          <button
+            onClick={resetProjectForm}
+            className="w-full border border-white/20 py-3 rounded-lg font-bold text-white/80 hover:text-white transition"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    </GlassCard>
+
+    <GlassCard className="p-8 max-h-[680px] overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-6 text-white">
+        Projects Database
+      </h2>
+
+      <div className="space-y-4">
+        {projects.map((project) => (
+          <div
+            key={project.id}
+            className="flex justify-between items-start border border-white/10 p-4 rounded-lg gap-4"
+          >
+            <div>
+              <p className="font-bold text-white">
+                {project.title}
+              </p>
+              <p className="text-xs text-white/60 mt-1">
+                /{project.slug} • {project.status} • order {project.order}
+              </p>
+              <p className="text-sm text-white/50 mt-2 line-clamp-2">
+                {project.description}
+              </p>
+            </div>
+
+            <div className="space-x-2 whitespace-nowrap">
+              <button
+                onClick={() => handleProjectEdit(project)}
+                className="px-4 py-1 border border-yellow-500 text-yellow-500 rounded-full hover:bg-yellow-500 hover:text-black transition"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={() => handleProjectDelete(project.id)}
+                className="px-4 py-1 border border-crimson text-crimson rounded-full hover:bg-crimson hover:text-white transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {projects.length === 0 && (
+          <p className="text-sm text-white/50">No projects found yet.</p>
+        )}
+      </div>
+    </GlassCard>
   </div>
 )}
       </div>

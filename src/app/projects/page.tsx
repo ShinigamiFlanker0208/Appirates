@@ -4,6 +4,9 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
+import Link from 'next/link';
+import { getPublishedProjects } from '@/lib/projects/service';
+import type { Project } from '@/lib/projects/schema';
 
 // Clean, minimalist arrow icon for micro-interactions
 const ArrowIcon = () => (
@@ -13,74 +16,33 @@ const ArrowIcon = () => (
     </svg>
 );
 
-// Projects array categorized with layout "sizes" for the Bento Box grid
-const projects = [
-    {
-        title: 'Appirates Hub',
-        description: 'The central nervous system of our crew. A club management platform featuring event tracking, member directories, and project showcases built for scale.',
-        tags: ['Next.js', 'React', 'Tailwind'],
-        image: '/Workshop-1.png',
-        size: 'large'
-    },
-    {
-        title: 'Kraken Bot',
-        description: 'An advanced Discord bot that orchestrates community engagement, automates moderation, and structures our daily operations.',
-        tags: ['Python', 'Discord.py'],
-        image: '/IOT.jpeg',
-        size: 'tall'
-    },
-    {
-        title: 'Compass',
-        description: 'Real-time campus navigation for new students.',
-        tags: ['Flutter', 'Firebase'],
-        image: '/FullStack 2.0.jpeg',
-        size: 'small'
-    },
-    {
-        title: 'Jolly Roger OS',
-        description: 'An experimental, minimalist operating system built from scratch to explore the absolute depths of low-level system architecture and kernel design.',
-        tags: ['C', 'Assembly', 'Systems'],
-        image: '/Workshop-1.png',
-        size: 'wide'
-    },
-    {
-        title: 'Crew Connect',
-        description: 'A lightning-fast, secure, peer-to-peer messaging application engineered to keep development teams perfectly in sync during high-stakes hackathons.',
-        tags: ['WebSockets', 'Node.js'],
-        image: '/krishn.JPG',
-        size: 'wide'
-    },
-    {
-        title: 'Loot Tracker',
-        description: 'Financial dashboard for managing club resources and sponsorships.',
-        tags: ['Vue.js', 'PostgreSQL'],
-        image: '/logo.PNG',
-        size: 'small'
-    }
-];
-
 // Tailwind classes mapping for CSS Grid spans. Added responsive scaling.
 const sizeClasses = {
     large: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
     tall: "col-span-1 md:col-span-1 row-span-1 md:row-span-2",
     wide: "col-span-1 md:col-span-2 row-span-1",
+    medium: "col-span-1 md:col-span-1 row-span-1",
     small: "col-span-1 md:col-span-1 row-span-1",
 };
 
-const ProjectCard = ({ project, index }: { project: any, index: number }) => {
+const ProjectCard = ({ project, index }: { project: Project, index: number }) => {
     return (
-        <motion.div
+        <Link
+            href={`/projects/${project.slug}`}
+            className={cn("group relative w-full h-full flex", sizeClasses[project.size as keyof typeof sizeClasses] ?? sizeClasses.small)}
+        >
+            <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1, ease: [0.21, 0.47, 0.32, 0.98] }}
-            className={cn("group relative w-full h-full flex", sizeClasses[project.size as keyof typeof sizeClasses])}
+            className="w-full h-full flex"
         >
             <GlassCard hover={false} padding="none" className="flex flex-col h-full w-full relative overflow-hidden rounded-2xl md:rounded-3xl !bg-black/20 transition-all duration-500 hover:shadow-[0_8px_30px_rgba(220,38,38,0.1)] hover:border-white/20">
                 {/* Background Image Layer */}
                 <div className="absolute inset-0 z-0 bg-black">
                     <img
-                        src={project.image}
-                        alt={project.title}
+                        src={project.image.url}
+                        alt={project.image.alt || project.title}
                         className="w-full h-full object-cover opacity-50 transition-transform duration-1000 ease-[cubic-bezier(0.21,0.47,0.32,0.98)] group-hover:scale-110 group-hover:opacity-60"
                     />
                     {/* Gradient Overlays for perfect text readability regardless of the image */}
@@ -128,11 +90,32 @@ const ProjectCard = ({ project, index }: { project: any, index: number }) => {
 
                 </div>
             </GlassCard>
-        </motion.div>
+            </motion.div>
+        </Link>
     );
 };
 
 export default function ProjectsPage() {
+    const [projects, setProjects] = React.useState<Project[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const data = await getPublishedProjects();
+                setProjects(data);
+            } catch (fetchError) {
+                console.error(fetchError);
+                setError("Unable to load projects right now.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProjects();
+    }, []);
+
     return (
         <main className="flex-1 flex flex-col relative pt-24 pb-12 px-4 md:px-6 min-h-screen">
             {/* Senior Level: High-Impact Editorial Header Section */}
@@ -171,12 +154,26 @@ export default function ProjectsPage() {
 
             {/* Senior Level: Modern Bento Box Grid Layout */}
             <div className="relative z-20 max-w-6xl mx-auto w-full">
-                {/* Fixed grid layout and height for better scaling and alignment */}
-                <div className="grid grid-cols-1 md:grid-cols-3 auto-rows-[240px] md:auto-rows-[260px] lg:auto-rows-[280px] gap-4 md:gap-5 grid-flow-dense">
-                    {projects.map((project, idx) => (
-                        <ProjectCard key={idx} project={project} index={idx} />
-                    ))}
-                </div>
+                {loading ? (
+                    <div className="w-full py-20 text-center">
+                        <div className="inline-block w-8 h-8 border-2 border-crimson border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p className="text-gray-500 font-light text-sm">Loading projects...</p>
+                    </div>
+                ) : error ? (
+                    <div className="w-full py-20 text-center">
+                        <p className="text-crimson font-semibold text-sm">{error}</p>
+                    </div>
+                ) : projects.length === 0 ? (
+                    <div className="w-full py-20 text-center">
+                        <p className="text-gray-400 font-light text-sm">No published projects yet.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 auto-rows-[240px] md:auto-rows-[260px] lg:auto-rows-[280px] gap-4 md:gap-5 grid-flow-dense">
+                        {projects.map((project, idx) => (
+                            <ProjectCard key={project.id} project={project} index={idx} />
+                        ))}
+                    </div>
+                )}
             </div>
         </main>
     );

@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useRef } from 'react';
+import React, { useRef } from "react";
 import Link from "next/link";
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { GlassCard } from '@/components/ui/GlassCard';
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { GlassCard } from "@/components/ui/GlassCard";
+import {
+  createPinnedSection,
+  createScrollReveal,
+  createShipController,
+} from "@/motion/scroll";
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
     gsap.registerPlugin(useGSAP, ScrollTrigger);
 }
 
@@ -18,86 +23,101 @@ export default function Home() {
     useGSAP(() => {
         // --- 1. HERO ENTRANCE ---
         const tl = gsap.timeline();
-        
-        tl.fromTo('.hero-branding', 
-            { y: 100, opacity: 0, letterSpacing: '0.5em' },
-            { y: 0, opacity: 1, letterSpacing: '0.1em', duration: 1.5, ease: "expo.out", delay: 0.3 }
+
+        tl.fromTo(
+            ".hero-branding",
+            { y: 100, opacity: 0, letterSpacing: "0.5em" },
+            {
+                y: 0,
+                opacity: 1,
+                letterSpacing: "0.1em",
+                duration: 1.5,
+                ease: "expo.out",
+                delay: 0.3,
+            }
         )
-        .fromTo('.hero-sub', 
-            { y: 20, opacity: 0 },
-            { y: 0, opacity: 1, duration: 1, ease: "power3.out" }, 
-            "-=0.8"
-        )
-        .fromTo('.hero-cta-btn',
-            { scale: 0.8, opacity: 0 },
-            { scale: 1, opacity: 1, duration: 1, ease: "back.out(1.7)", stagger: 0.1 },
-            "-=0.6"
-        );
+            .fromTo(
+                ".hero-sub",
+                { y: 20, opacity: 0 },
+                { y: 0, opacity: 1, duration: 1, ease: "power3.out" },
+                "-=0.8"
+            )
+            .fromTo(
+                ".hero-cta-btn",
+                { scale: 0.8, opacity: 0 },
+                {
+                    scale: 1,
+                    opacity: 1,
+                    duration: 1,
+                    ease: "back.out(1.7)",
+                    stagger: 0.1,
+                },
+                "-=0.6"
+            );
 
         // --- 2. SHIP MOVEMENT DRIVER (Link to StormBackground) ---
-        ScrollTrigger.create({
-            trigger: containerRef.current,
-            start: "top top",
-            end: "bottom bottom",
-            onUpdate: (self) => {
-                // Progressively sail and scale the ship based on scroll
-                const percent = 0.75 - (self.progress * 0.5); // Move from right to left center
-                const scale = 6.5 + (self.progress * 4.0); // Get closer
-                const yOffset = self.progress * 50;
-                
-                if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('setShipProgress', { 
-                        detail: { percent, scale, yOffset } 
-                    }));
-                }
-            }
+        const cleanupShip = createShipController(containerRef.current, (self) => {
+            const percent = 0.75 - self.progress * 0.5;
+            const scale = 6.5 + self.progress * 4.0;
+            const yOffset = self.progress * 50;
+            return { percent, scale, yOffset };
         });
 
         // --- 3. STICKY SCROLL REVEAL (Jaw-dropping interaction) ---
-        // Pin the left side while the right side scrolls
-        ScrollTrigger.create({
-            trigger: stickySectionRef.current,
-            start: "top top",
-            end: "bottom bottom",
-            pin: '.sticky-left',
-            pinSpacing: false,
-        });
+        let cleanupPin = () => {};
+        let cleanupCards = () => {};
 
-        // Animate the cards on the right as they enter
-        gsap.utils.toArray('.scroll-card').forEach((card: any, i) => {
-            gsap.fromTo(card,
-                { opacity: 0, y: 100, scale: 0.9 },
-                {
-                    scrollTrigger: {
-                        trigger: card,
-                        start: "top 80%", // trigger earlier
-                        end: "top 40%",
-                        scrub: 0.5, // lower scrub value makes it "snap" into place faster rather than slowly trailing
-                    },
+        if (stickySectionRef.current) {
+            cleanupPin = createPinnedSection(".sticky-left", {
+                trigger: stickySectionRef.current,
+                start: "top top",
+                end: "bottom bottom",
+                pinSpacing: false,
+            });
+
+            cleanupCards = createScrollReveal({
+                selector: ".scroll-card",
+                container: stickySectionRef.current,
+                from: { opacity: 0, y: 100, scale: 0.9 },
+                to: {
                     opacity: 1,
                     y: 0,
                     scale: 1,
-                    ease: "power2.out" // Use power ease for snappier finish
-                }
-            );
-        });
+                    ease: "power2.out",
+                },
+                triggerConfig: {
+                    start: "top 80%",
+                    end: "top 40%",
+                    scrub: 0.5,
+                },
+            });
+        }
 
         // --- 4. PARALLAX FOOTER ---
-        gsap.fromTo('.footer-content', 
-            { y: -100, opacity: 0 },
-            {
-                scrollTrigger: {
-                    trigger: '.footer-section',
-                    start: "top bottom",
-                    end: "bottom bottom",
-                    scrub: 1,
-                },
-                y: 0,
-                opacity: 1,
-                ease: "none"
-            }
-        );
+        const footerCtx = gsap.context(() => {
+            gsap.fromTo(
+                ".footer-content",
+                { y: -100, opacity: 0 },
+                {
+                    scrollTrigger: {
+                        trigger: ".footer-section",
+                        start: "top bottom",
+                        end: "bottom bottom",
+                        scrub: 1,
+                    },
+                    y: 0,
+                    opacity: 1,
+                    ease: "none",
+                }
+            );
+        }, containerRef);
 
+        return () => {
+            cleanupShip();
+            cleanupPin();
+            cleanupCards();
+            footerCtx.revert();
+        };
     }, { scope: containerRef });
 
     return (
