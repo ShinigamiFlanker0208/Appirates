@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -14,7 +14,9 @@ import {
   updateDoc,
   query,
   orderBy,
+  writeBatch,
 } from "firebase/firestore";
+import { Reorder, useDragControls } from "framer-motion";
 import { auth, db } from "@/lib/firebase";
 import {
   createProject,
@@ -39,12 +41,83 @@ type Member = {
   order: number;
 };
 
+type CrewReorderItemProps = {
+  member: Member;
+  onEdit: (member: Member) => void;
+  onDelete: (id: string) => void;
+  onDragEnd: () => void;
+};
+
+function CrewReorderItem({ member, onEdit, onDelete, onDragEnd }: CrewReorderItemProps) {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={member}
+      onDragEnd={onDragEnd}
+      layout="position"
+      layoutScroll
+      dragListener={false}
+      dragControls={dragControls}
+      dragMomentum={false}
+      dragElastic={0.02}
+      transition={{ type: "spring", stiffness: 640, damping: 42, mass: 0.6 }}
+      whileDrag={{
+        scale: 1.015,
+        zIndex: 20,
+        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+      }}
+      style={{ willChange: "transform" }}
+      className="group flex justify-between items-center p-4 rounded-xl border border-zinc-800/50 bg-zinc-900/20 hover:bg-zinc-900/50 hover:border-zinc-700 transition-colors duration-150 select-none"
+    >
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          aria-label={`Reorder ${member.name}`}
+          onPointerDown={(event) => dragControls.start(event)}
+          className="text-zinc-500 opacity-50 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing touch-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 14a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+          </svg>
+        </button>
+        <div>
+          <p className="font-medium text-sm text-zinc-100">{member.name}</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {member.role} <span className="mx-1.5 opacity-50">•</span> <span className="capitalize">{member.category}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => onEdit(member)}
+          className="text-xs px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => onDelete(member.id)}
+          className="text-xs px-3 py-1.5 rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+        >
+          Delete
+        </button>
+      </div>
+    </Reorder.Item>
+  );
+}
+
 export default function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [members, setMembers] = useState<Member[]>([]);
+  const latestMemberOrderRef = useRef<Member[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -110,6 +183,7 @@ export default function AdminPage() {
         ...(doc.data() as Omit<Member, "id">),
       }));
       setMembers(data);
+      latestMemberOrderRef.current = data;
     } catch (error) {
       setAdminDataError(toReadableError(error, "Unable to load crew data."));
     }
@@ -207,11 +281,41 @@ export default function AdminPage() {
       await updateDoc(doc(db, "team", editingId), form);
       setEditingId(null);
     } else {
-      await addDoc(collection(db, "team"), form);
+      const newOrder = members.length;
+      await addDoc(collection(db, "team"), { ...form, order: newOrder });
     }
 
     setForm({ name: "", role: "", category: "member", order: 1 });
     fetchMembers();
+  };
+
+  const handleReorder = (newOrder: Member[]) => {
+    setMembers(newOrder);
+    latestMemberOrderRef.current = newOrder;
+  };
+
+  const persistMemberOrder = async () => {
+    const orderedMembers = latestMemberOrderRef.current;
+    if (!orderedMembers.length) return;
+
+    const hasChanges = orderedMembers.some((member, index) => member.order !== index);
+    if (!hasChanges) return;
+
+    try {
+      const batch = writeBatch(db);
+      orderedMembers.forEach((member, index) => {
+        if (member.order === index) return;
+        const docRef = doc(db, "team", member.id);
+        batch.update(docRef, { order: index });
+      });
+      await batch.commit();
+      setMembers((prev) => prev.map((member, index) => ({ ...member, order: index })));
+      latestMemberOrderRef.current = orderedMembers.map((member, index) => ({ ...member, order: index }));
+    } catch (error) {
+      console.error("Failed to reorder:", error);
+      setAdminDataError("Failed to update member order.");
+      fetchMembers();
+    }
   };
 
   const handleEdit = (member: Member) => {
@@ -517,16 +621,6 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className={labelClass}>Display Order</label>
-                  <input
-                    type="number"
-                    className={inputClass}
-                    value={form.order}
-                    onChange={(e) => setForm({ ...form, order: Number(e.target.value) })}
-                  />
-                </div>
-
                 <div className="pt-2 flex gap-3">
                   <button onClick={handleSubmit} className={primaryBtnClass}>
                     {editingId ? "Save Changes" : "Create Member"}
@@ -554,31 +648,17 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-3">
-                {members.map((member) => (
-                  <div key={member.id} className="group flex justify-between items-center p-4 rounded-xl border border-zinc-800/50 bg-zinc-900/20 hover:bg-zinc-900/50 hover:border-zinc-700 transition-all">
-                    <div>
-                      <p className="font-medium text-sm text-zinc-100">{member.name}</p>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        {member.role} <span className="mx-1.5 opacity-50">•</span> <span className="capitalize">{member.category}</span>
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleEdit(member)}
-                        className="text-xs px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(member.id)}
-                        className="text-xs px-3 py-1.5 rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                <Reorder.Group axis="y" values={members} onReorder={handleReorder} layoutScroll className="space-y-3">
+                  {members.map((member) => (
+                    <CrewReorderItem
+                      key={member.id}
+                      member={member}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onDragEnd={persistMemberOrder}
+                    />
+                  ))}
+                </Reorder.Group>
                 
                 {members.length === 0 && (
                   <div className="text-center py-12 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-xl">
