@@ -133,9 +133,9 @@ export default function AdminPage() {
     try {
       const data = await getAllProjectsForAdmin();
       setProjects(data);
+      setProjectError(null);
     } catch (error) {
       const message = toReadableError(error, "Unable to load projects data.");
-      setAdminDataError(message);
       setProjectError(message);
     }
   };
@@ -176,9 +176,14 @@ export default function AdminPage() {
       setAdminDataError(null);
       fetchMembers();
       fetchEvents();
-      fetchProjects();
     }
   }, [loggedIn]);
+
+  useEffect(() => {
+    if (loggedIn && activeTab === "projects") {
+      fetchProjects();
+    }
+  }, [loggedIn, activeTab]);
   
   // Crew Handlers
   const handleLogin = async (e: React.FormEvent) => {
@@ -366,7 +371,6 @@ export default function AdminPage() {
         }
       } catch (error) {
         const message = toReadableError(error, "Unable to delete project.");
-        setAdminDataError(message);
         setProjectError(message);
       }
     }
